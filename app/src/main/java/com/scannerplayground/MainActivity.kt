@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.wifi.ScanResult
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.view.View
@@ -23,6 +24,8 @@ class MainActivity : Activity() {
 
     private var fingerprintCount = 0
     private var resultsCountSum = 0
+    private var shouldScan = false
+    private var scanResultsCached = ArrayList<ScanResult>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,14 +36,20 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        wifiManager.reconnect()
+        stopScan()
     }
 
     fun onStart(view: View) {
+        shouldScan = true
         requestScan()
     }
 
     fun onStop(view: View) {
+        stopScan()
+    }
+
+    private fun stopScan() {
+        shouldScan = false
         wifiManager.reconnect()
     }
 
@@ -50,17 +59,31 @@ class MainActivity : Activity() {
     }
 
     private fun analyzeResults() {
-
         resultsCountSum += wifiManager.scanResults.size
         val average = resultsCountSum / fingerprintCount
         samplesCountAvgText.text = "Samples count average: $average"
+
+        wifiManager.scanResults.forEach { scanResult ->
+            val sameCount = scanResultsCached.count { p ->
+                p.SSID == scanResult.SSID
+                && p.BSSID == scanResult.BSSID
+                && p.frequency == scanResult.frequency
+                && p.level == scanResult.level
+            }
+            if (sameCount == 0)
+                scanResultsCached.add(scanResult)
+        }
+
+        samplesCountUniqueText.text = "Unique samples: ${scanResultsCached.size}"
     }
 
     private fun requestScan() {
+        if (!shouldScan) return
         wifiManager.startScan()
     }
 
     private val statusText by lazy { findViewById(R.id.status_text) as TextView }
     private val samplesCountAvgText by lazy { findViewById(R.id.samples_count_avg_text) as TextView }
+    private val samplesCountUniqueText by lazy { findViewById(R.id.samples_unique_count) as TextView }
     private val wifiManager by lazy { applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager }
 }
