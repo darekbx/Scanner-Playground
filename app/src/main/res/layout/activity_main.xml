@@ -28,6 +28,13 @@
         android:layout_alignParentLeft="true"
         android:layout_below="@id/samples_count_avg_text"
         android:padding="8dp"/>
+    <TextView
+        android:id="@+id/fingerptints_unique_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@id/samples_unique_count"
+        android:padding="8dp"/>
 
     <Button
         android:id="@+id/button_stop"

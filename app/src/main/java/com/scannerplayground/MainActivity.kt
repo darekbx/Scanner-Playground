@@ -13,8 +13,10 @@ import android.widget.TextView
 
 class MainActivity : Activity() {
 
-    val wifiBroadcast: BroadcastReceiver
-        get() = object: BroadcastReceiver() {
+    class Fingerprint(val samples: List<ScanResult>)
+
+    val wifiBroadcast
+        get() = object : BroadcastReceiver() {
             override fun onReceive(p0: Context?, p1: Intent?) {
                 displayFingerprintCount()
                 analyzeResults()
@@ -26,6 +28,7 @@ class MainActivity : Activity() {
     private var resultsCountSum = 0
     private var shouldScan = false
     private var scanResultsCached = ArrayList<ScanResult>()
+    private var fingerprints = ArrayList<Fingerprint>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,13 +66,37 @@ class MainActivity : Activity() {
         val average = resultsCountSum / fingerprintCount
         samplesCountAvgText.text = "Samples count average: $average"
 
-        wifiManager.scanResults.forEach { scanResult ->
-            val sameCount = scanResultsCached.count { p ->
-                p.SSID == scanResult.SSID
-                && p.BSSID == scanResult.BSSID
-                && p.frequency == scanResult.frequency
-                && p.level == scanResult.level
+        countUniqueSamples()
+        countUniqueFingerprints()
+    }
+
+    private fun countUniqueFingerprints() {
+        var canBeAdded = true
+        fingerprints.forEach { fingerprint ->
+            wifiManager.scanResults.forEach { scanResult ->
+                val sameCount = calculateSameCount(fingerprint.samples, scanResult)
+                if (sameCount == fingerprint.samples.size) {
+                    canBeAdded = false
+                }
             }
+        }
+        if (canBeAdded)
+            fingerprints.add(Fingerprint(wifiManager.scanResults))
+
+        fingerprintsCountUniqueText.text = "Unique fingerprints: ${fingerprints.size}"
+    }
+
+    private fun calculateSameCount(samples: List<ScanResult>, scanResult: ScanResult) =
+            samples.count { p ->
+                p.SSID == scanResult.SSID
+                        && p.BSSID == scanResult.BSSID
+                        && p.frequency == scanResult.frequency
+                        && p.level == scanResult.level
+            }
+
+    private fun countUniqueSamples() {
+        wifiManager.scanResults.forEach { scanResult ->
+            val sameCount = calculateSameCount(scanResultsCached, scanResult)
             if (sameCount == 0)
                 scanResultsCached.add(scanResult)
         }
@@ -85,5 +112,6 @@ class MainActivity : Activity() {
     private val statusText by lazy { findViewById(R.id.status_text) as TextView }
     private val samplesCountAvgText by lazy { findViewById(R.id.samples_count_avg_text) as TextView }
     private val samplesCountUniqueText by lazy { findViewById(R.id.samples_unique_count) as TextView }
+    private val fingerprintsCountUniqueText by lazy { findViewById(R.id.fingerptints_unique_count) as TextView }
     private val wifiManager by lazy { applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager }
 }
